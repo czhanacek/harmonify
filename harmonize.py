@@ -95,9 +95,14 @@ queue = Queue()
 queue.put(600) # 600 is the frequency that we get to open with
 
 output = Thread(target=fifth, args=(queue,))
+output.daemon = True
+
 output.start()
 
 t_1 = Thread(target=input_thread, args=(queue,))
+t_1.daemon = True
 time.sleep(1)
 t_1.start()
+while(1):
+    time.sleep(1)
 
