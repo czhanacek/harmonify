@@ -4,6 +4,7 @@ import math
 from multiprocessing import Queue
 from threading import Thread
 import time
+import audioop
 
 
 CHUNK = 22050
@@ -31,25 +32,24 @@ def fifth(frequency_queue):
         rate=RATE,
         output=True)
     
-    print("Ran!") # this is just a XC plug
-    while(1):
-        
-        freq = frequency_queue.get() # get the most recent function in the queue. Should only run 
+    print("Ran!") # this is just an XC plug
+    freq = frequency_queue.get() # get the most recent function in the queue. Should only run 
                                 # the first time the function is run.
-        i = 0
-        while(1):
-            fifth = freq * pow(1.05945454545454545455, 7) * pow(2, 0)
-            third = freq * pow(1.05945454545454545455, 4) * pow(2, 0)
-            WAVEDATA = chr(int(math.sin(i / ((44100 / fifth) / math.pi)) * 127 + 128))
-            outputstream.write(WAVEDATA)
-            if(frequency_queue.empty() == False and int(math.sin(i / ((44100 / fifth) / math.pi)) * 127) == 0):
-                while(frequency_queue.empty() == False):
-                    freq = frequency_queue.get()
-                i = 0
-            WAVEDATA = chr(int(math.sin(i / ((44100 / third) / math.pi)) * 127 + 128))
-            outputstream.write(WAVEDATA)
-            
-            i += 1
+    i = 0
+    while(1):
+        fifth = freq * pow(1.05945454545454545455, 7) * pow(2, 0)
+        third = freq * pow(1.05945454545454545455, 4) * pow(2, 0)
+        WAVEDATA = chr(int(math.sin(i / ((44100 / fifth) / math.pi)) * 127 + 128))
+        outputstream.write(WAVEDATA)
+
+        if(frequency_queue.empty() == False and int(math.sin(i / ((44100 / fifth) / math.pi)) * 127) == 0):
+            while(frequency_queue.empty() == False):
+                freq = frequency_queue.get()
+            i = 0
+        WAVEDATA = chr(int(math.sin(i / ((44100 / third) / math.pi)) * 127 + 128))
+        outputstream.write(WAVEDATA)
+        
+        i += 1
 
 
 def input_thread(output_queue):
@@ -81,17 +81,13 @@ def input_thread(output_queue):
             thefreq = which*RATE/(RATE / how_fast)
 
         thefreq *= pow(2, 2)
-        if(thefreq > 500):
-            #while(thefreq < 700):
-            #    thefreq *= 2
-            
-            
-            if(abs(thefreq - old_freq) > 50):
-                print(thefreq)
-                print("difference was " + str(abs(thefreq - old_freq)))
-                old_freq = thefreq
-                print("Sent")
-                output_queue.put(thefreq)
+        volume = audioop.rms(data, 2)
+        if(volume > 30000):
+            print(thefreq)
+            print("difference was " + str(abs(thefreq - old_freq)))
+            old_freq = thefreq
+            print("Sent")
+            output_queue.put(thefreq)
 
     
 
@@ -99,9 +95,14 @@ queue = Queue()
 queue.put(600) # 600 is the frequency that we get to open with
 
 output = Thread(target=fifth, args=(queue,))
+output.daemon = True
+
 output.start()
 
 t_1 = Thread(target=input_thread, args=(queue,))
+t_1.daemon = True
 time.sleep(1)
 t_1.start()
+while(1):
+    time.sleep(1)
 
